@@ -8,35 +8,48 @@ KubeVigil continuously compares your live cluster state against your Git reposit
 
 ---
 
-## The problem
+## The Problem
 
 Every Kubernetes cluster drifts from its Git-declared state. A developer scales a deployment manually during an incident and forgets to revert. Someone edits a ConfigMap directly in prod to debug an issue. An automation script modifies resource limits without updating the manifests. These changes are invisible — no alerts fire, no dashboards change — until something breaks.
 
-Existing tools tell you *that* drift happened. KubeVigil tells you *everything about why*.
+**ArgoCD tells you *that* drift happened. KubeVigil tells you *everything about why*.**
+
+| | ArgoCD | KubeVigil |
+|---|---|---|
+| Detects drift | ✅ | ✅ |
+| Who caused it | ❌ | ✅ |
+| When it happened | ❌ | ✅ |
+| Root cause analysis | ❌ | ✅ AI-powered |
+| Blast radius | ❌ | ✅ Dependency graph |
+| Auto remediation PR | ❌ | ✅ |
+| Structured Slack report | Basic | ✅ Full incident report |
+
+KubeVigil is not a replacement for ArgoCD — it's an intelligence layer on top of it. ArgoCD detects the sync signal. KubeVigil does the investigation.
 
 ---
 
-## What KubeVigil does
+## What KubeVigil Does
 
-- **Continuous state snapshotting** — polls the Kubernetes API server every 60 seconds and snapshots every resource (Deployments, ConfigMaps, Secrets, Services, Ingresses, RBAC) into a time-series store
+- **Continuous state snapshotting** — watches the Kubernetes API server in real time and snapshots every resource (Deployments, ConfigMaps, Secrets, Services, Ingresses, RBAC) into a time-series store
 - **Git-vs-live diff engine** — compares live cluster state against declared manifests in your connected Git repository, field by field
-- **AI root cause analysis** — an LangChain agent correlates the drift event with kubectl audit logs, CloudTrail events, and Git commit history to reconstruct exactly what happened and why
+- **AI root cause analysis** — a LangChain agent correlates the drift event with kubectl audit logs, CloudTrail events, and Git commit history to reconstruct exactly what happened and why
 - **Blast radius analysis** — maps service dependency graphs to show which upstream and downstream services are affected by the drifted resource
 - **Automated remediation PRs** — generates the exact manifest change to restore sync, opens a GitHub PR, and assigns it to the service owner
-- **Slack + PagerDuty alerts** — posts a structured drift report with timeline, root cause, and blast radius to your incident channel
+- **Slack alerts** — posts a structured drift report with timeline, root cause, and blast radius to your incident channel
 - **MERN dashboard** — real-time drift map showing all resources, their sync status, drift history, and AI-generated explanations
 
 ---
 
-## Architecture overview
+## Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    Data sources                          │
+│                    Data Sources                          │
 │  K8s API Server · kubectl audit logs · CloudTrail · Git │
 └────────────────────────┬────────────────────────────────┘
                          │
                     Kafka topics
+                    (pod inside EKS)
                          │
          ┌───────────────┼───────────────┐
          ▼               ▼               ▼
@@ -52,7 +65,7 @@ Existing tools tell you *that* drift happened. KubeVigil tells you *everything a
         No drift             Drift detected
                                    │
                         AI Root Cause Agent
-                        (LangChain + GPT-4o)
+                        (LangChain + Groq)
                                    │
                     ┌──────────────┼──────────────┐
                     ▼              ▼               ▼
@@ -62,71 +75,133 @@ Existing tools tell you *that* drift happened. KubeVigil tells you *everything a
 
 ---
 
-## Tech stack
+## How It Works — Full Flow
 
-### Infrastructure & Kubernetes
-| Tool | Purpose |
-|------|---------|
-| **AWS EKS** | Managed Kubernetes cluster — what KubeVigil monitors |
-| **Terraform** | Provision EKS, VPC, IAM roles, RDS, MSK (Kafka) |
-| **AWS MSK** | Managed Kafka — event backbone for all state change events |
-| **AWS CloudTrail** | Audit log source for API-level actions on AWS resources |
-| **kubectl audit logs** | K8s-level audit trail — who ran what kubectl command and when |
-| **ArgoCD** | GitOps operator — KubeVigil reads ArgoCD sync status as one of its signals |
-| **Helm** | Package KubeVigil itself as a Helm chart for easy installation |
-
-### Backend — drift detection engine
-| Tool | Purpose |
-|------|---------|
-| **Node.js** | Core backend runtime for the drift detection service |
-| **@kubernetes/client-node** | Official K8s JS client — used to Watch the API server for resource changes |
-| **KafkaJS** | Produce and consume drift events on MSK topics |
-| **PostgreSQL (AWS RDS)** | Time-series store for snapshots + drift history |
-| **Redis (ElastiCache)** | Cache last-known-good state for each resource for fast diffing |
-| **deep-diff** | Field-level JSON diffing between live state and Git-declared state |
-| **octokit** | GitHub API client — fetch manifests from repo, open remediation PRs |
-
-### AI root cause agent
-| Tool | Purpose |
-|------|---------|
-| **LangChain (JS)** | Agent orchestration framework |
-| **GPT-4o** | LLM for root cause reasoning, blast radius explanation, PR description generation |
-| **LlamaIndex** | RAG over runbooks, past incident reports, and service dependency docs |
-| **Pinecone** | Vector store for embedded runbooks and incident history |
-| **custom tools** | LangChain tools: `get_audit_logs`, `get_git_history`, `get_dependency_graph`, `open_github_pr`, `post_slack_alert` |
-
-### CI/CD & DevOps
-| Tool | Purpose |
-|------|---------|
-| **GitHub Actions** | CI pipeline — lint, test, build Docker image, push to ECR |
-| **ArgoCD** | CD — deploys KubeVigil itself to EKS via GitOps |
-| **AWS ECR** | Container registry for KubeVigil Docker images |
-| **Docker** | Containerise each microservice (watcher, drift-engine, ai-agent, api) |
-| **Prometheus + Grafana** | Monitor KubeVigil's own health — lag, drift detection latency, agent response time |
-| **AWS Secrets Manager** | Store all API keys, DB credentials, LLM keys — never in env files |
-
-### Frontend — MERN dashboard
-| Tool | Purpose |
-|------|---------|
-| **React** | SPA dashboard — real-time drift map, resource explorer, incident timeline |
-| **Socket.IO** | Push drift events to dashboard in real time without polling |
-| **Recharts** | Drift frequency charts, resource health over time |
-| **React Flow** | Interactive service dependency graph showing blast radius visually |
-| **Express.js** | REST + WebSocket API server |
-| **MongoDB Atlas** | Store dashboard state, user preferences, alert configs, drift comments |
-| **TailwindCSS** | Styling |
-
-### Observability
-| Tool | Purpose |
-|------|---------|
-| **OpenTelemetry** | Distributed tracing across all KubeVigil microservices |
-| **AWS CloudWatch** | Centralised log aggregation |
-| **Prometheus** | Metrics — drift detection lag, Kafka consumer lag, agent latency |
-| **Grafana** | Dashboards for KubeVigil's own operational health |
+```
+1. Developer manually scales a deployment in prod via kubectl
+          ↓
+2. K8s API server registers the change
+          ↓
+3. KubeVigil watcher picks it up via Watch stream
+   → publishes to Kafka topic: kubevigil.resource.snapshot
+          ↓
+4. Drift engine consumes the event
+   → fetches declared manifest from GitHub via octokit
+   → deep-diff finds: replicas 3 → 1
+   → stores drift event in PostgreSQL with timestamp
+   → publishes to kubevigil.drift.detected
+          ↓
+5. AI agent picks up the drift event
+   → calls get_kubectl_audit_logs() → finds who ran the command
+   → calls get_cloudtrail_events() → confirms AWS API action
+   → calls get_dependency_graph() → finds 3 affected services
+   → calls search_incident_history() → finds similar past incident
+   → calls open_github_pr() → remediation PR opened automatically
+   → calls post_slack_alert() → team notified with full report
+          ↓
+6. Dashboard receives Socket.IO event
+   → drift appears on live map
+   → AI-generated report displayed
+   → React Flow graph shows blast radius visually
+```
 
 ---
 
-## Repository structure
+## Tech Stack
+
+### Infrastructure & Kubernetes
+
+| Tool | Purpose |
+|------|---------|
+| **AWS EKS** | Managed Kubernetes cluster — what KubeVigil monitors |
+| **Terraform** | Provisions EKS, VPC, IAM roles, RDS — full IaC |
+| **ArgoCD** | GitOps operator — KubeVigil reads its sync status as an input signal |
+| **Helm** | Packages KubeVigil itself for single-command installation on any cluster |
+| **AWS CloudTrail** | Audit log source for API-level actions on AWS resources |
+| **kubectl audit logs** | K8s-level audit trail — who ran what command and when |
+
+### Backend — Watcher Service
+
+| Tool | Purpose |
+|------|---------|
+| **Node.js** | Runtime for the watcher microservice |
+| **@kubernetes/client-node** | Official K8s JS client — streams resource changes via Watch API |
+| **KafkaJS** | Publishes resource change events to Kafka topics |
+
+### Event Backbone
+
+| Tool | Purpose |
+|------|---------|
+| **Kafka (Bitnami Helm chart, runs as pod inside EKS)** | Message bus — all microservices communicate through Kafka topics, never directly |
+
+### Backend — Drift Detection Engine
+
+| Tool | Purpose |
+|------|---------|
+| **Node.js** | Runtime for the drift engine microservice |
+| **KafkaJS** | Consumes from resource snapshot topic |
+| **octokit** | GitHub API client — fetches declared YAML manifests from repo |
+| **deep-diff** | Field-level JSON diffing between live state and Git-declared state |
+| **PostgreSQL (AWS RDS t3.micro)** | Time-series store for snapshots and drift history |
+| **Redis (runs as pod inside EKS)** | Caches last-known-good state for fast diffing without hitting DB |
+
+### AI Root Cause Agent
+
+| Tool | Purpose |
+|------|---------|
+| **LangChain (JS)** | Agent orchestration — decides which tools to call and in what order |
+| **Groq** | Free LLM for root cause reasoning, blast radius explanation, PR description |
+| **LlamaIndex** | RAG over runbooks and past incident reports |
+| **Pinecone** | Vector store for embedded runbooks and incident history |
+
+**Custom LangChain tools the agent calls autonomously:**
+
+```javascript
+tools = [
+  get_kubectl_audit_logs(resource, timerange),   // Who ran what kubectl command
+  get_cloudtrail_events(resource, timerange),    // AWS API-level actions
+  get_git_commit_history(file_path, timerange),  // What changed in Git and when
+  get_dependency_graph(service_name),            // Which services depend on this
+  search_incident_history(query),                // RAG search over past incidents
+  open_github_pr(branch, manifest, description), // Create remediation PR
+  post_slack_alert(channel, report),             // Send structured alert
+]
+```
+
+### API & Frontend — MERN Dashboard
+
+| Tool | Purpose |
+|------|---------|
+| **Express.js** | REST + WebSocket API server |
+| **Socket.IO** | Pushes drift events to dashboard in real time |
+| **MongoDB Atlas** | Stores dashboard state, user preferences, alert configs, drift comments |
+| **React** | SPA dashboard — real-time drift map, resource explorer, incident timeline |
+| **React Flow** | Interactive service dependency graph showing blast radius visually |
+| **Recharts** | Drift frequency charts, resource health over time |
+| **TailwindCSS** | Styling |
+
+### CI/CD
+
+| Tool | Purpose |
+|------|---------|
+| **GitHub Actions** | CI pipeline — lint, test, build Docker image, push to ECR |
+| **AWS ECR** | Container registry for KubeVigil Docker images |
+| **ArgoCD** | CD — deploys KubeVigil itself to EKS via GitOps |
+| **Docker** | Each microservice (watcher, drift-engine, ai-agent, api) runs as its own container |
+
+### Observability & Security
+
+| Tool | Purpose |
+|------|---------|
+| **Prometheus** | Metrics — drift detection lag, Kafka consumer lag, agent response time |
+| **Grafana** | Dashboards for KubeVigil's own operational health |
+| **OpenTelemetry** | Distributed tracing across all four microservices |
+| **AWS CloudWatch** | Centralised log aggregation |
+| **AWS Secrets Manager** | Stores all API keys and credentials — never in env files or code |
+
+---
+
+## Repository Structure
 
 ```
 kubevigil/
@@ -137,7 +212,7 @@ kubevigil/
 │   └── api/              # Express REST + WebSocket API for dashboard
 ├── dashboard/            # React MERN frontend
 ├── infra/
-│   ├── terraform/        # EKS, RDS, MSK, ElastiCache, IAM, VPC
+│   ├── terraform/        # EKS, RDS, IAM, VPC
 │   └── helm/             # KubeVigil Helm chart for self-deployment
 ├── k8s/                  # ArgoCD ApplicationSet manifests
 ├── .github/
@@ -150,19 +225,19 @@ kubevigil/
 
 ---
 
-## Key Kafka topics
+## Key Kafka Topics
 
 ```
-kubevigil.resource.snapshot     # Full resource snapshots every 60s
+kubevigil.resource.snapshot     # Full resource snapshots — live cluster state
 kubevigil.drift.detected        # Drift events with field-level diff
 kubevigil.audit.ingested        # Processed kubectl + CloudTrail audit events
-kubevigil.remediation.created   # Remediation PR events
-kubevigil.alert.dispatched      # Slack / PagerDuty alert events
+kubevigil.remediation.created   # Remediation PR opened events
+kubevigil.alert.dispatched      # Slack alert dispatched events
 ```
 
 ---
 
-## Drift detection logic
+## Drift Detection Logic
 
 ```
 for each resource in live_cluster:
@@ -184,25 +259,7 @@ for each resource in live_cluster:
 
 ---
 
-## AI agent tools
-
-The LangChain agent is given these tools and autonomously decides which to call:
-
-```javascript
-tools = [
-  get_kubectl_audit_logs(resource, timerange),   // Who ran what kubectl command
-  get_cloudtrail_events(resource, timerange),    // AWS API level actions
-  get_git_commit_history(file_path, timerange),  // What changed in Git and when
-  get_dependency_graph(service_name),            // Which services depend on this
-  search_incident_history(query),                // RAG over past incidents
-  open_github_pr(branch, manifest, description), // Create remediation PR
-  post_slack_alert(channel, report),             // Send structured alert
-]
-```
-
----
-
-## AI-generated drift report example
+## AI-Generated Drift Report Example
 
 ```
 DRIFT DETECTED — production/payments-api Deployment
@@ -237,65 +294,3 @@ REMEDIATION
 ```
 
 ---
-
-## Getting started
-
-### Prerequisites
-- AWS account with EKS access
-- `kubectl`, `terraform`, `helm` installed
-- GitHub token with repo + PR permissions
-- OpenAI API key
-
-### Local development
-
-```bash
-git clone https://github.com/yourusername/kubevigil
-cd kubevigil
-
-# Spin up local K8s cluster
-kind create cluster --name kubevigil-dev
-
-# Start all services
-docker compose up
-
-# Dashboard
-cd dashboard && npm install && npm run dev
-```
-
-### Deploy to AWS EKS
-
-```bash
-cd infra/terraform
-terraform init
-terraform apply
-
-# Install KubeVigil on your cluster via Helm
-helm repo add kubevigil https://yourusername.github.io/kubevigil
-helm install kubevigil kubevigil/kubevigil \
-  --set openai.apiKey=$OPENAI_API_KEY \
-  --set github.token=$GITHUB_TOKEN \
-  --set slack.webhookUrl=$SLACK_WEBHOOK
-```
-
----
-
-## Roadmap
-
-- [ ] K8s Operator + CRD — `DriftPolicy` custom resource for per-namespace drift rules
-- [ ] Multi-cluster support — monitor 10+ clusters from a single KubeVigil instance
-- [ ] Predictive drift — ML model to predict which resources are likely to drift based on historical patterns
-- [ ] Auto-remediation mode — merge PR automatically for low-severity, high-confidence drifts
-- [ ] RBAC drift detection — specifically track permission escalations as a security signal
-- [ ] Compliance reports — SOC 2 / ISO 27001 drift audit exports
-
----
-
-## Why KubeVigil exists
-
-ArgoCD tells you a resource is out of sync. It does not tell you why, when, who, or what broke because of it. KubeVigil fills that gap with an AI layer that turns a yellow badge into an actionable incident report in under 60 seconds.
-
----
-
-## License
-
-MIT
