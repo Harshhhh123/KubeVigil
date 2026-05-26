@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import axios from 'axios';
 
-const socket = io('http://localhost:4000');
-
+const socket = io('http://aed10aae28f6a47128a9856fe79a49e4-1227861173.ap-south-1.elb.amazonaws.com:4000');
 const SEVERITY_COLORS = {
   CRITICAL: '#ff4444',
   HIGH:     '#ff8800',
@@ -22,9 +21,11 @@ export default function App() {
       setDrifts(prev => [event, ...prev]);
     });
 
-    socket.on('drift:report', ({ id, report }) => {
-      setDrifts(prev => prev.map(d => d.id === id ? { ...d, report } : d));
-    });
+  socket.on('drift:report', ({ id, report, resourceName }) => {
+  setDrifts(prev => prev.map(d => 
+    d.resourceName === resourceName ? { ...d, report } : d
+  ));
+});
 
     socket.on('drift:restored', ({ resourceName }) => {
       setDrifts(prev => prev.map(d =>
@@ -35,10 +36,18 @@ export default function App() {
     return () => socket.off();
   }, []);
 
+  // Show only latest drift per resource
+const uniqueDrifts = drifts.reduce((acc, drift) => {
+  if (!acc.find(d => d.resourceName === drift.resourceName && d.status === drift.status)) {
+    acc.push(drift);
+  }
+  return acc;
+}, []);
+
   async function handleRestore(drift) {
     setRestoring(drift.id);
     try {
-      await axios.post('http://localhost:4000/api/restore', {
+      await axios.post('http://aed10aae28f6a47128a9856fe79a49e4-1227861173.ap-south-1.elb.amazonaws.com:4000/api/restore', {
         resourceName: drift.resourceName,
         namespace:    drift.namespace || 'default',
         replicas:     3,
@@ -74,7 +83,7 @@ export default function App() {
               Watching cluster... No drift detected.
             </div>
           )}
-          {drifts.map(drift => (
+          {uniqueDrifts.map(drift => (
             <div
               key={drift.id}
               onClick={() => setSelected(drift)}
@@ -117,8 +126,7 @@ export default function App() {
                 </div>
               </div>
               <div style={{ color: '#666', fontSize: '12px', marginTop: '8px' }}>
-                {new Date(drift.detectedAt).toLocaleString()}
-              </div>
+{new Date(drift.detectedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}              </div>
 
               {drift.status === 'DRIFTED' && (
                 <button
@@ -160,12 +168,20 @@ export default function App() {
               {/* Diff */}
               <div style={{ marginBottom: '16px' }}>
                 <div style={{ color: '#A64BFF', fontSize: '12px', marginBottom: '8px' }}>WHAT CHANGED</div>
-                {selected.diffs?.map((d, i) => (
-                  <div key={i} style={{ color: '#ccc', fontSize: '12px', background: '#0a0a0a', padding: '8px', borderRadius: '4px', marginBottom: '4px' }}>
-                    <span style={{ color: '#ff4444' }}>- </span>
-                    {d.path?.join('.')} : {JSON.stringify(d.lhs)} → {JSON.stringify(d.rhs)}
-                  </div>
-                ))}
+                {selected.diffs?.filter(d => {
+  const path = d.path?.join('.') || '';
+  const noisyFields = ['terminationMessagePath', 'terminationMessagePolicy', 'imagePullPolicy', 'restartPolicy', 'terminationGracePeriodSeconds', 'dnsPolicy', 'securityContext', 'schedulerName', 'progressDeadlineSeconds', 'revisionHistoryLimit'];
+  return !noisyFields.some(f => path.includes(f));
+}).map((d, i) => (
+  <div key={i} style={{ color: '#ccc', fontSize: '12px', background: '#0a0a0a', padding: '8px', borderRadius: '4px', marginBottom: '4px' }}>
+    <span style={{ color: '#ff4444' }}>● </span>
+    <span style={{ color: '#FF7E40' }}>{d.path?.join('.')}</span>
+    <span style={{ color: '#666' }}> : </span>
+    <span style={{ color: '#ff4444' }}>{JSON.stringify(d.lhs)}</span>
+    <span style={{ color: '#666' }}> → </span>
+    <span style={{ color: '#00cc44' }}>{JSON.stringify(d.rhs)}</span>
+  </div>
+))}
               </div>
 
               {/* AI Report */}
