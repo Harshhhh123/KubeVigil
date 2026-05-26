@@ -16,7 +16,7 @@ spec:
       serviceAccountName: kubevigil-ai-agent
       containers:
       - name: ai-agent
-        image: 164686058235.dkr.ecr.ap-south-1.amazonaws.com/kubevigil/ai-agent:2e8cc1d58801f17c7f6b2665051eb649e5c65b57
+        image: 164686058235.dkr.ecr.ap-south-1.amazonaws.com/kubevigil/ai-agent:659ee759ae8466be973b8aa05228b2d09e41d2bd
         imagePullPolicy: Always
         env:
         - name: KAFKA_BROKER
