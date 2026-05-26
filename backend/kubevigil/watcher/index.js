@@ -23,7 +23,6 @@ const producer = kafka.producer();
 // These are all the Kubernetes resource types we care about
 // Any change to any of these triggers a snapshot
 const WATCH_RESOURCES = [
-  { group: '/api/v1',                     resource: 'pods'        },
   { group: '/apis/apps/v1',               resource: 'deployments' },
   { group: '/api/v1',                     resource: 'configmaps'  },
   { group: '/api/v1',                     resource: 'services'    },

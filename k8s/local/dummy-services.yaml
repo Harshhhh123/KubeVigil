@@ -4,7 +4,7 @@ metadata:
   name: payments-api
   namespace: default
 spec:
-  replicas: 3
+  replicas: 2
   selector:
     matchLabels:
       app: payments-api
@@ -18,8 +18,8 @@ spec:
         image: nginx:alpine
         resources:
           limits:
-            memory: "512Mi"
-            cpu: "250m"
+            memory: "128Mi"
+            cpu: "100m"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -27,7 +27,7 @@ metadata:
   name: checkout-service
   namespace: default
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: checkout-service
@@ -41,8 +41,8 @@ spec:
         image: nginx:alpine
         resources:
           limits:
-            memory: "256Mi"
-            cpu: "200m"
+            memory: "128Mi"
+            cpu: "100m"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -50,7 +50,7 @@ metadata:
   name: order-service
   namespace: default
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: order-service
@@ -64,5 +64,5 @@ spec:
         image: nginx:alpine
         resources:
           limits:
-            memory: "256Mi"
-            cpu: "200m"
+            memory: "128Mi"
+            cpu: "100m"
