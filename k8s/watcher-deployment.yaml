@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: watcher
+  namespace: kubevigil
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: watcher
+  template:
+    metadata:
+      labels:
+        app: watcher
+    spec:
+      serviceAccountName: kubevigil-watcher  # we create this below — gives the pod permission to watch K8s resources
+      containers:
+      - name: watcher
+        image: kubevigil/watcher:latest
+        imagePullPolicy: Never   # tells Kubernetes to use local image, not pull from registry
+        env:
+        - name: KAFKA_BROKER
+          value: "kafka.kubevigil.svc.cluster.local:9092"
+        resources:
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+---
+# ServiceAccount — gives the watcher pod an identity inside the cluster
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubevigil-watcher
+  namespace: kubevigil
+---
+# ClusterRole — defines what permissions the watcher has
+# It needs read + watch access on the resources we're monitoring
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubevigil-watcher
+rules:
+- apiGroups: ["", "apps", "networking.k8s.io"]
+  resources: ["pods", "deployments", "configmaps", "services", "ingresses"]
+  verbs: ["get", "list", "watch"]   # read only — watcher never modifies anything
+---
+# ClusterRoleBinding — connects the ServiceAccount to the ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubevigil-watcher
+subjects:
+- kind: ServiceAccount
+  name: kubevigil-watcher
+  namespace: kubevigil
+roleRef:
+  kind: ClusterRole
+  name: kubevigil-watcher
+  apiGroup: rbac.authorization.k8s.io
