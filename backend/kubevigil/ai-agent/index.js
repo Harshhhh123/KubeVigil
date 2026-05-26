@@ -7,7 +7,9 @@ import { z } from 'zod';
 import { CloudWatchLogsClient, FilterLogEventsCommand } from '@aws-sdk/client-cloudwatch-logs';
 import { Octokit } from '@octokit/rest';
 import pg from 'pg';
-
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+globalThis.crypto = require('crypto');
 const { Pool } = pg;
 
 // ─── Clients ─────────────────────────────────────────────────────
