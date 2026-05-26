@@ -42,9 +42,9 @@ jobs:
         IMAGE_TAG: ${{ github.sha }}
       run: |
         sed -i "s|image: .*kubevigil/drift-engine.*|image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG|g" \
-          k8s/drift-engine-deployment.yaml
+          k8s/eks/drift-engine-deployment.yaml
         git config user.email "actions@github.com"
         git config user.name "GitHub Actions"
-        git add k8s/drift-engine-deployment.yaml
+        git add k8s/eks/drift-engine-deployment.yaml
         git commit -m "ci: update drift-engine image to $IMAGE_TAG"
         git push

@@ -1,10 +1,12 @@
 import 'dotenv/config';
 import { Kafka } from 'kafkajs';
 import { Octokit } from '@octokit/rest';
-import { diff } from 'deep-diff';
+
 import pg from 'pg';
 import { createClient } from 'redis';
 import yaml from 'js-yaml';
+import pkg from 'deep-diff';
+const { diff } = pkg;
 
 const { Pool } = pg;
 
