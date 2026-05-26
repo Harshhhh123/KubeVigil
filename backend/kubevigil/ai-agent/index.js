@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { Kafka } from 'kafkajs';
 import { ChatGroq } from '@langchain/groq';
 import { tool } from '@langchain/core/tools';
-import { createReactAgent } from 'langchain/agents';
+import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import { z } from 'zod';
 import { CloudWatchLogsClient, FilterLogEventsCommand } from '@aws-sdk/client-cloudwatch-logs';
 import { Octokit } from '@octokit/rest';
