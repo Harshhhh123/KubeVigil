@@ -30,6 +30,7 @@ const pgPool = new Pool({
   database: process.env.PG_DATABASE || 'kubevigil',
   user:     process.env.PG_USER     || 'postgres',
   password: process.env.PG_PASSWORD || 'kubevigil123',
+  ssl: { rejectUnauthorized: false },
 });
 
 const redisClient = createClient({
@@ -41,13 +42,11 @@ const GITHUB_REPO  = process.env.GITHUB_REPO  || 'KubeVigil';
 
 // ─── Severity classifier ──────────────────────────────────────────
 function classifySeverity(diffs) {
-  const criticalPaths = ['spec.replicas', 'spec.template.spec.containers'];
-  const highPaths     = ['spec.template.spec.containers[0].resources'];
-
   for (const d of diffs) {
     const path = d.path?.join('.') || '';
-    if (criticalPaths.some(p => path.includes(p))) return 'CRITICAL';
-    if (highPaths.some(p => path.includes(p)))     return 'HIGH';
+    if (path.includes('replicas'))   return 'CRITICAL';
+    if (path.includes('resources'))  return 'HIGH';
+    if (path.includes('containers')) return 'HIGH';
   }
   return 'LOW';
 }
