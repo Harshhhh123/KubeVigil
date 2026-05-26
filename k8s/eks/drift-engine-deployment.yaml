@@ -23,7 +23,7 @@ spec:
         - name: REDIS_URL
           value: "redis://redis-master.kubevigil.svc.cluster.local:6379"
         - name: PG_HOST
-          value: "postgresql.kubevigil.svc.cluster.local"
+          value: "kubevigil-db.cl44qcoa0l6m.ap-south-1.rds.amazonaws.com"
         - name: PG_DATABASE
           value: "kubevigil"
         - name: PG_USER
