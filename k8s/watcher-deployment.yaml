@@ -16,8 +16,8 @@ spec:
       serviceAccountName: kubevigil-watcher  # we create this below — gives the pod permission to watch K8s resources
       containers:
       - name: watcher
-        image: kubevigil/watcher:latest
-        imagePullPolicy: Never   # tells Kubernetes to use local image, not pull from registry
+        image: 164686058235.dkr.ecr.ap-south-1.amazonaws.com/kubevigil/watcher:latest
+        imagePullPolicy: Always   # tells Kubernetes to use local image, not pull from registry
         env:
         - name: KAFKA_BROKER
           value: "kafka.kubevigil.svc.cluster.local:9092"
