@@ -7,8 +7,7 @@ import { z } from 'zod';
 import { CloudWatchLogsClient, FilterLogEventsCommand } from '@aws-sdk/client-cloudwatch-logs';
 import { Octokit } from '@octokit/rest';
 import pg from 'pg';
-import { createRequire } from 'module';
-
+const { Pool } = pg;
 
 // ─── Clients ─────────────────────────────────────────────────────
 const kafka = new Kafka({
