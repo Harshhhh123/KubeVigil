@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: drift-engine
+  namespace: kubevigil
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: drift-engine
+  template:
+    metadata:
+      labels:
+        app: drift-engine
+    spec:
+      containers:
+      - name: drift-engine
+        image: 164686058235.dkr.ecr.ap-south-1.amazonaws.com/kubevigil/drift-engine:latest
+        imagePullPolicy: Always
+        env:
+        - name: KAFKA_BROKER
+          value: "kafka.kubevigil.svc.cluster.local:9092"
+        - name: REDIS_URL
+          value: "redis://redis-master.kubevigil.svc.cluster.local:6379"
+        - name: PG_HOST
+          value: "postgresql.kubevigil.svc.cluster.local"
+        - name: PG_DATABASE
+          value: "kubevigil"
+        - name: PG_USER
+          value: "postgres"
+        - name: PG_PASSWORD
+          value: "kubevigil123"
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: kubevigil-secrets
+              key: github-token
+        - name: GITHUB_OWNER
+          value: "Harshhhh123"
+        - name: GITHUB_REPO
+          value: "KubeVigil"
+        resources:
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
