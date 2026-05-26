@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: drift-engine
-        image: 164686058235.dkr.ecr.ap-south-1.amazonaws.com/kubevigil/drift-engine:7f3029f63bdd45940151f4c087dc339e36ef68fe
+        image: 164686058235.dkr.ecr.ap-south-1.amazonaws.com/kubevigil/drift-engine:da7648b9200fdaf14f5120b7374f787a3c315214
         imagePullPolicy: Always
         env:
         - name: KAFKA_BROKER
