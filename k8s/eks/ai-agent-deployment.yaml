@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-agent
+  namespace: kubevigil
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-agent
+  template:
+    metadata:
+      labels:
+        app: ai-agent
+    spec:
+      serviceAccountName: kubevigil-ai-agent
+      containers:
+      - name: ai-agent
+        image: 164686058235.dkr.ecr.ap-south-1.amazonaws.com/kubevigil/ai-agent:latest
+        imagePullPolicy: Always
+        env:
+        - name: KAFKA_BROKER
+          value: "kafka.kubevigil.svc.cluster.local:9092"
+        - name: PG_HOST
+          value: "kubevigil-db.cl44qcoa0l6m.ap-south-1.rds.amazonaws.com"
+        - name: PG_DATABASE
+          value: "kubevigil"
+        - name: PG_USER
+          value: "postgres"
+        - name: PG_PASSWORD
+          value: "kubevigil123"
+        - name: GITHUB_OWNER
+          value: "Harshhhh123"
+        - name: GITHUB_REPO
+          value: "KubeVigil"
+        - name: GROQ_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: kubevigil-secrets
+              key: groq-api-key
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: kubevigil-secrets
+              key: github-token
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "300m"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubevigil-ai-agent
+  namespace: kubevigil
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubevigil-ai-agent
+rules:
+- apiGroups: ["", "apps"]
+  resources: ["deployments", "pods", "services"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubevigil-ai-agent
+subjects:
+- kind: ServiceAccount
+  name: kubevigil-ai-agent
+  namespace: kubevigil
+roleRef:
+  kind: ClusterRole
+  name: kubevigil-ai-agent
+  apiGroup: rbac.authorization.k8s.io

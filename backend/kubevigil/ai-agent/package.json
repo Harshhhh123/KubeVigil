@@ -1,0 +1,24 @@
+{
+  "name": "ai-agent",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@aws-sdk/client-cloudwatch-logs": "^3.1053.0",
+    "@langchain/core": "^1.1.48",
+    "@langchain/groq": "^1.2.1",
+    "@octokit/rest": "^22.0.1",
+    "dotenv": "^17.4.2",
+    "kafkajs": "^2.2.4",
+    "langchain": "^1.4.2",
+    "pg": "^8.21.0",
+    "zod": "^4.4.3"
+  }
+}
