@@ -46,7 +46,7 @@ jobs:
 
     # Step 5 — update the k8s manifest with the new image tag
     # ArgoCD watches this file in Git — when it changes, ArgoCD redeploys automatically
-    - name: Update k8s manifest with new image tag
+    - name: Update the k8s manifest with new image tag
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         IMAGE_TAG: ${{ github.sha }}
