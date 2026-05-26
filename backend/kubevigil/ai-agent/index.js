@@ -145,9 +145,10 @@ const openGithubPR = tool(
       });
 
       const content = Buffer.from(fileData.content, 'base64').toString('utf8');
-      const updated = content.replace(/replicas:\s*\d+/, `replicas: ${declaredReplicas}`);
-      const newContent = Buffer.from(updated).toString('base64');
-
+const updated = content.replace(/replicas:\s*\d+/g, `replicas: ${declaredReplicas}`);      const newContent = Buffer.from(updated).toString('base64');
+console.log('[ai-agent] Original content:', content.substring(0, 200));
+console.log('[ai-agent] Updated content:', updated.substring(0, 200));
+console.log('[ai-agent] Same?', content === updated);
       const branchName = `fix/restore-${resourceName}-${Date.now()}`;
       const { data: ref } = await octokit.git.getRef({
         owner: GITHUB_OWNER, repo: GITHUB_REPO, ref: `heads/${repo.default_branch}`,
@@ -205,7 +206,7 @@ DRIFT DETAILS:
 - What changed: ${JSON.stringify(diffs, null, 2)}
 - Declared replicas in Git: ${declaredReplicas}
 
-Your job:
+Your job is to:
 1. Call get_audit_logs to find who made this change and when (search last 120 minutes)
 2. Call get_dependency_graph to find what services are affected
 3. Call search_past_drifts to check if this happened before
