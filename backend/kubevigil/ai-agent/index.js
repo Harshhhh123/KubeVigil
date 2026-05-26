@@ -15,7 +15,7 @@ const kafka = new Kafka({
   brokers: [process.env.KAFKA_BROKER || 'kafka.kubevigil.svc.cluster.local:9092'],
 });
 const consumer = kafka.consumer({ groupId: 'ai-agent-group' });
-
+const producer = kafka.producer();
 const llm = new ChatGroq({
   apiKey: process.env.GROQ_API_KEY,
   model: 'llama-3.3-70b-versatile',
@@ -238,13 +238,26 @@ Be concise and factual.
   console.log('[ai-agent] INCIDENT REPORT:');
   console.log(report);
   console.log('[ai-agent] ═══════════════════════════════\n');
-
+await producer.send({
+  topic: 'kubevigil.alert.dispatched',
+  messages: [{
+    key: resourceName,
+    value: JSON.stringify({
+      driftEventId: driftEvent.driftEventId,
+      resourceName,
+      report,
+      detectedAt: new Date().toISOString(),
+    }),
+  }],
+});
+console.log('[ai-agent] Report published to dashboard');
   return report;
 }
 
 // ─── Main Kafka consumer ──────────────────────────────────────────
 async function main() {
   await consumer.connect();
+  await producer.connect();
   console.log('[ai-agent] Kafka connected. Waiting for drift events...');
 
   await consumer.subscribe({
@@ -263,6 +276,7 @@ async function main() {
 
     console.log(`[ai-agent] Drift event received — ${driftEvent.resourceName}`);
     await runAgent(driftEvent);
+    
   },
 });
 }
