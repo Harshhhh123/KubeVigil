@@ -34,7 +34,7 @@ const WATCH_RESOURCES = [
 async function watchResource({ group, resource }) {
   const path = `${group}/namespaces/default/watch/${resource}`;  // watch default namespace only for now
   // wait for the issue to
-  console.log(`[watcher] Starting the watch on ${resource}...`);
+  console.log(`[watcher] Starting the watch on the ${resource}...`);
 
   watch.watch(
     `${group}/namespaces/default/${resource}`,
