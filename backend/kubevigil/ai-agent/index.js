@@ -38,7 +38,18 @@ const pgPool = new Pool({
 const GITHUB_OWNER = process.env.GITHUB_OWNER || 'Harshhhh123';
 const GITHUB_REPO  = process.env.GITHUB_REPO  || 'KubeVigil';
 const LOG_GROUP    = '/aws/eks/kubevigil/cluster';
+// Dedup map — prevents processing same resource multiple times within 60 seconds
+const recentlyProcessed = new Map();
 
+function isDuplicate(resourceName) {
+  const lastProcessed = recentlyProcessed.get(resourceName);
+  const now = Date.now();
+  if (lastProcessed && (now - lastProcessed) < 60000) {
+    return true;
+  }
+  recentlyProcessed.set(resourceName, now);
+  return false;
+}
 // ─── Tool 1: CloudWatch Audit Logs ───────────────────────────────
 const getAuditLogs = tool(
   async ({ resourceName, minutesBack }) => {
@@ -241,13 +252,19 @@ async function main() {
     fromBeginning: false,
   });
 
-  await consumer.run({
-    eachMessage: async ({ message }) => {
-      const driftEvent = JSON.parse(message.value.toString());
-      console.log(`[ai-agent] Drift event received — ${driftEvent.resourceName}`);
-      await runAgent(driftEvent);
-    },
-  });
+ await consumer.run({
+  eachMessage: async ({ message }) => {
+    const driftEvent = JSON.parse(message.value.toString());
+    
+    if (isDuplicate(driftEvent.resourceName)) {
+      console.log(`[ai-agent] Skipping duplicate event for ${driftEvent.resourceName}`);
+      return;
+    }
+
+    console.log(`[ai-agent] Drift event received — ${driftEvent.resourceName}`);
+    await runAgent(driftEvent);
+  },
+});
 }
 
 main().catch(err => {
