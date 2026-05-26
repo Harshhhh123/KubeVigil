@@ -18,8 +18,8 @@ const consumer = kafka.consumer({ groupId: 'ai-agent-group' });
 
 const llm = new ChatGroq({
   apiKey: process.env.GROQ_API_KEY,
-  model: 'llama3-70b-8192',
-  temperature: 0,
+  model: 'llama-3.3-70b-versatile',
+  temperature:0,
 });
 
 const cloudwatch = new CloudWatchLogsClient({ region: 'ap-south-1' });
