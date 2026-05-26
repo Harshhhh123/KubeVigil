@@ -16,7 +16,7 @@ spec:
       serviceAccountName: kubevigil-ai-agent
       containers:
       - name: dashboard-backend
-        image: 164686058235.dkr.ecr.ap-south-1.amazonaws.com/kubevigil/dashboard-backend:v1
+        image: 164686058235.dkr.ecr.ap-south-1.amazonaws.com/kubevigil/dashboard-backend:v5
         imagePullPolicy: Always
         ports:
         - containerPort: 4000
@@ -31,6 +31,8 @@ spec:
           value: "kubevigil123"
         - name: PORT
           value: "4000"
+        - name: KAFKA_BROKER
+          value: "kafka.kubevigil.svc.cluster.local:9092"
         resources:
           limits:
             memory: "256Mi"
